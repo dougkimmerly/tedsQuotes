@@ -233,6 +233,62 @@ class TBGQuoteBuilder(tk.Tk):
         except Exception as e:
             messagebox.showerror("Error", f"Could not save categories: {str(e)}")
     
+    def check_for_updates(self):
+        """Check GitHub for updates and install if available"""
+        import subprocess
+        
+        # Get the app directory
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # Check if this is a git repo
+        git_dir = os.path.join(app_dir, '.git')
+        if not os.path.exists(git_dir):
+            messagebox.showinfo("Updates", 
+                "This installation is not connected to GitHub.\n"
+                "Updates must be downloaded manually.")
+            return
+        
+        try:
+            # Fetch from remote
+            subprocess.run(['git', 'fetch', 'origin', 'main'], 
+                          cwd=app_dir, capture_output=True, check=True)
+            
+            # Get local and remote commit hashes
+            local = subprocess.run(['git', 'rev-parse', 'HEAD'], 
+                                   cwd=app_dir, capture_output=True, text=True)
+            remote = subprocess.run(['git', 'rev-parse', 'origin/main'], 
+                                    cwd=app_dir, capture_output=True, text=True)
+            
+            if local.stdout.strip() == remote.stdout.strip():
+                messagebox.showinfo("Updates", "✓ You're running the latest version!")
+            else:
+                # Ask user if they want to update
+                if messagebox.askyesno("Update Available", 
+                    "A new version is available!\n\n"
+                    "Would you like to download and install it?\n\n"
+                    "The app will restart after updating."):
+                    
+                    # Pull updates
+                    result = subprocess.run(['git', 'pull', 'origin', 'main'], 
+                                          cwd=app_dir, capture_output=True, text=True)
+                    
+                    if result.returncode == 0:
+                        messagebox.showinfo("Update Complete", 
+                            "✓ Update installed successfully!\n\n"
+                            "Please restart the app to use the new version.")
+                        self.quit()
+                    else:
+                        messagebox.showerror("Update Failed", 
+                            f"Could not install update:\n{result.stderr}")
+        
+        except FileNotFoundError:
+            messagebox.showerror("Error", 
+                "Git is not installed.\n\n"
+                "Please install Xcode Command Line Tools:\n"
+                "Open Terminal and run: xcode-select --install")
+        except Exception as e:
+            messagebox.showerror("Error", f"Update check failed:\n{str(e)}")
+    
     def generate_quote_number(self):
         """Generate a quote number based on date"""
         return f"TBG-{datetime.now().strftime('%Y%m%d-%H%M')}"
@@ -251,6 +307,9 @@ class TBGQuoteBuilder(tk.Tk):
         ttk.Label(header_frame, text="TBG ENTERPRISES", style="Title.TLabel").pack(side=tk.LEFT)
         ttk.Label(header_frame, text="Home Renovation Quote Builder", 
                   font=("Helvetica", 10)).pack(side=tk.LEFT, padx=(10, 0))
+        
+        # Update button in top right
+        ttk.Button(header_frame, text="⟳ Check for Updates", command=self.check_for_updates).pack(side=tk.RIGHT)
         
         # Quote Info Section
         info_frame = ttk.LabelFrame(main_frame, text="Quote Information", padding=10)
