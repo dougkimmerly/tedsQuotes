@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TBG Quote Builder - OAuth Callback</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: #f5f5f5;
+        }
+        .container {
+            text-align: center;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 500px;
+        }
+        h1 { color: #b91c1c; }
+        .status { margin: 20px 0; }
+        .success { color: #059669; }
+        .error { color: #dc2626; }
+        .code-box {
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 4px;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 12px;
+            margin: 15px 0;
+        }
+        button {
+            background: #b91c1c;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover { background: #991b1b; }
+        #manualInstructions { display: none; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>TBG Quote Builder</h1>
+        <div id="status" class="status">Processing authorization...</div>
+        <div id="result"></div>
+        <div id="manualInstructions">
+            <p>If automatic redirect didn't work, copy this URL and open it in your browser:</p>
+            <div id="manualUrl" class="code-box"></div>
+            <button onclick="copyUrl()">Copy URL</button>
+        </div>
+    </div>
+
+    <script>
+        // Get OAuth parameters from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const realmId = urlParams.get('realmId');
+        const state = urlParams.get('state');
+        const error = urlParams.get('error');
+
+        const statusEl = document.getElementById('status');
+        const resultEl = document.getElementById('result');
+        const manualEl = document.getElementById('manualInstructions');
+        const manualUrlEl = document.getElementById('manualUrl');
+
+        if (error) {
+            statusEl.innerHTML = '<span class="error">Authorization failed</span>';
+            resultEl.innerHTML = `<p>Error: ${error}</p><p>${urlParams.get('error_description') || ''}</p>`;
+        } else if (code && realmId) {
+            // Build the localhost callback URL
+            const localCallbackUrl = `http://localhost:8000/api/auth/callback?code=${encodeURIComponent(code)}&realmId=${encodeURIComponent(realmId)}&state=${encodeURIComponent(state || '')}`;
+
+            statusEl.innerHTML = 'Authorization received! Sending to local server...';
+            manualUrlEl.textContent = localCallbackUrl;
+
+            // Try to call the local server
+            fetch(localCallbackUrl, { mode: 'no-cors' })
+                .then(() => {
+                    statusEl.innerHTML = '<span class="success">Success! Redirecting...</span>';
+                    // Redirect to local frontend
+                    setTimeout(() => {
+                        window.location.href = 'http://localhost:5173';
+                    }, 1500);
+                })
+                .catch(err => {
+                    console.error('Error:', err);
+                    statusEl.innerHTML = '<span class="error">Could not reach local server</span>';
+                    manualEl.style.display = 'block';
+                });
+
+            // Also try direct redirect as fallback
+            setTimeout(() => {
+                if (!document.querySelector('.success')) {
+                    // If we haven't shown success yet, try redirect
+                    window.location.href = localCallbackUrl;
+                }
+            }, 2000);
+        } else {
+            statusEl.innerHTML = '<span class="error">Missing authorization parameters</span>';
+            resultEl.innerHTML = '<p>Please try the authorization process again.</p>';
+        }
+
+        function copyUrl() {
+            navigator.clipboard.writeText(manualUrlEl.textContent);
+            alert('URL copied to clipboard!');
+        }
+    </script>
+</body>
+</html>
