@@ -1,0 +1,7 @@
+{
+  "entity_id": "CC-quotes",
+  "repo": "dougkimmerly/tedsQuotes",
+  "domain_keywords": ["quotes", "webapp", "nodejs"],
+  "capabilities": "Quote management web application",
+  "handoff_path": ".claude/handoff/"
+}
